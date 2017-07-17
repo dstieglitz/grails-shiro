@@ -45,7 +45,7 @@ import javax.servlet.Filter
 
 class ShiroGrailsPlugin {
 
-    def version = "1.2.2-SNAPSHOT"
+    def version = "1.2.3-SNAPSHOT"
     def grailsVersion = "1.2 > *"
     def author = "Peter Ledbrook"
     def authorEmail = "peter@cacoethes.co.uk"
@@ -402,6 +402,7 @@ Enables Grails applications to take advantage of the Apache Shiro security layer
      * <code>true</code> to allow access, or <code>false</code> otherwise.
      */
     boolean accessControlMethod(application, filter, boolean authcRequired, Map args = [:], Closure c = null) {
+    try {
         // If we're accessing the auth controller itself, we don't
         // want to check whether the user is authenticated, otherwise
         // we end up in an infinite loop of redirects.
@@ -493,6 +494,10 @@ Enables Grails applications to take advantage of the Apache Shiro security layer
         } else {
             return true
         }
+    } catch (Throwable t) {
+        log.error t.message, t
+        return false
+    }
     }
 
     def processController(controllerClass, log) {
