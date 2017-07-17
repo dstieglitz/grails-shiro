@@ -402,7 +402,6 @@ Enables Grails applications to take advantage of the Apache Shiro security layer
      * <code>true</code> to allow access, or <code>false</code> otherwise.
      */
     boolean accessControlMethod(application, filter, boolean authcRequired, Map args = [:], Closure c = null) {
-    try {
         // If we're accessing the auth controller itself, we don't
         // want to check whether the user is authenticated, otherwise
         // we end up in an infinite loop of redirects.
@@ -419,6 +418,52 @@ Enables Grails applications to take advantage of the Apache Shiro security layer
         // as well as authenticated ones. Otherwise, remembered
         // users will have to log in.
         def authenticatedUserRequired = args["auth"] || (args["auth"] == null && authcRequired)
+
+	// check for valid session. Note that this breaks the underlying method agnostic paragigm
+	// that Shiro has, but due to a bug in the SecurityUtils class that I don't want to
+	// fix, I'm doing it this way.
+	try {
+		def p = SecurityUtils.subject.principal
+	} catch (Throwable t) { // IllegalArgumentException thrown if session is not valid 
+	    /* copied from below */
+            // User is not authenticated, so deal with it. First, let
+            // the filters class deal with it.
+            boolean doDefault = true
+            if (filtersClass.metaClass.respondsTo(filtersClass, "onNotAuthenticated")) {
+                doDefault = filtersClass.onNotAuthenticated(subject, filter)
+            }
+
+            // Continue with the default behaviour of redirecting to
+            // the login page, unless the onNotAuthenticated() method
+            // requests otherwise.
+            if (doDefault) {
+                // Default behaviour is to redirect to the login page.
+                // We start by building the target URI from the request's
+                // 'forwardURI', which is the URL specified by the
+                // browser.
+                def targetUri = new StringBuilder(request.forwardURI[request.contextPath.size()..-1])
+                def query = request.queryString
+                if (query) {
+                    if (!query.startsWith('?')) {
+                        targetUri << '?'
+                    }
+                    targetUri << query
+                }
+
+                def redirectUri = application.config.security.shiro.redirect.uri
+                if (redirectUri) {
+                    filter.redirect(uri: redirectUri + "?targetUri=${targetUri.encodeAsURL()}")
+                } else {
+                    filter.redirect(
+                            controller: "auth",
+                            action: "login",
+                            params: [targetUri: targetUri.toString()])
+                }
+            }
+
+            return false
+	    /* end copy */
+	}
 
         // If required, check that the user is authenticated.
         def subject = SecurityUtils.subject
@@ -494,10 +539,6 @@ Enables Grails applications to take advantage of the Apache Shiro security layer
         } else {
             return true
         }
-    } catch (Throwable t) {
-        log.error t.message, t
-        return false
-    }
     }
 
     def processController(controllerClass, log) {
