@@ -45,7 +45,7 @@ import javax.servlet.Filter
 
 class ShiroGrailsPlugin {
 
-    def version = "1.2.3"
+    def version = "1.2.4-SNAPSHOT"
     def grailsVersion = "1.2 > *"
     def author = "Peter Ledbrook"
     def authorEmail = "peter@cacoethes.co.uk"
